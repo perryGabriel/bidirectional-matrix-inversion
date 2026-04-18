@@ -12,7 +12,7 @@ from .algorithms import (
     recover_power_series_dict,
 )
 from .bidirectional import bidir_dict
-from .benchmark import BenchmarkConfig, benchmark_to_csv, run_all_methods
+from .benchmark import BenchmarkConfig, benchmark_fixed_n_vary_s_to_csv, benchmark_to_csv, run_all_methods
 from .graphx import draw_q_graph_from_matrix, draw_q_graph_from_sparse
 from .matrix import (
     dict_to_matrix,
@@ -28,6 +28,7 @@ __all__ = [
     "BenchmarkConfig",
     "add_vectors",
     "benchmark_to_csv",
+    "benchmark_fixed_n_vary_s_to_csv",
     "bidir_dict",
     "dict_mat_mult",
     "dict_to_matrix",

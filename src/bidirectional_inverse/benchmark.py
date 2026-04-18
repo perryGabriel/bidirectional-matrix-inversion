@@ -1,13 +1,20 @@
 from __future__ import annotations
 
 import time
+import importlib.util
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Iterable
 
 import numpy as np
 import pandas as pd
-from tqdm import tqdm
+
+if importlib.util.find_spec("tqdm") is not None:
+    from tqdm import tqdm
+else:
+    def tqdm(iterable, **kwargs):
+        del kwargs
+        return iterable
 
 from .algorithms import (
     gaussian_inv_dict,
@@ -216,6 +223,66 @@ def benchmark_to_csv(
             if n >= cfg.absolute_cutoff:
                 continue
 
+            m_row, m_col = generate_sparse_adjacency_list(
+                size=n,
+                num_out_edges=s,
+                sum_of_each_column=cfg.q_spectral_radius,
+            )
+            results, disabled_methods = run_all_methods(
+                m_row,
+                m_col,
+                n,
+                cfg,
+                timeout_seconds=timeout_seconds,
+                disable_on_timeout=ordered_samples,
+                disabled_methods=disabled_methods,
+            )
+
+            for method, (flops, err, cols, runtime) in results.items():
+                rows.append(
+                    {
+                        "Computed": method,
+                        "n": n,
+                        "s": s,
+                        "Avg. FLOPs": np.log10(flops),
+                        "Cols Fetched": np.log10(cols),
+                        "Avg. Linf Error": np.log10(err),
+                        "Time": np.log10(runtime),
+                    }
+                )
+    finally:
+        if rows:
+            df = pd.concat((df, pd.DataFrame(rows)), ignore_index=True)
+            df.to_csv(cfg.output_csv, index=False)
+    return df
+
+
+def benchmark_fixed_n_vary_s_to_csv(
+    n: int,
+    sparsity_samples: Iterable[int],
+    cfg: BenchmarkConfig,
+    timeout_seconds: float | None = None,
+    ordered_samples: bool = True,
+    show_progress: bool = True,
+):
+    """
+    Benchmark all methods at fixed matrix size n while varying sparsity s.
+    """
+    cfg.output_csv.parent.mkdir(parents=True, exist_ok=True)
+    if cfg.output_csv.exists():
+        df = pd.read_csv(cfg.output_csv)
+    else:
+        df = pd.DataFrame(columns=["Computed", "n", "s", "Avg. FLOPs", "Cols Fetched", "Avg. Linf Error", "Time"])
+
+    disabled_methods: set[str] = set()
+    rows = []
+    sparsity_list = [int(s) for s in sparsity_samples]
+    iterator = tqdm(sparsity_list, desc=f"Benchmarking (fixed n={n})", unit="s") if show_progress else sparsity_list
+
+    try:
+        for s in iterator:
+            if n >= cfg.absolute_cutoff:
+                continue
             m_row, m_col = generate_sparse_adjacency_list(
                 size=n,
                 num_out_edges=s,

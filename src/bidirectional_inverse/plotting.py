@@ -61,3 +61,27 @@ def generate_standard_plots(df: pd.DataFrame, output_dir: Path):
     fig.tight_layout()
     fig.savefig(output_dir / "error_vs_n.png", dpi=160)
     plt.close(fig)
+
+
+def generate_sparsity_plots(df: pd.DataFrame, output_dir: Path):
+    output_dir.mkdir(parents=True, exist_ok=True)
+    if df.empty:
+        return
+
+    fig, ax = plt.subplots(figsize=(8, 5))
+    ax.set_title("FLOPs vs Sparsity")
+    ax.set_xlabel("s")
+    ax.set_ylabel("log10(FLOPs)")
+    _scatter_by_method(ax, df, "s", "Avg. FLOPs")
+    fig.tight_layout()
+    fig.savefig(output_dir / "flops_vs_sparsity.png", dpi=160)
+    plt.close(fig)
+
+    fig, ax = plt.subplots(figsize=(8, 5))
+    ax.set_title("Runtime vs Sparsity")
+    ax.set_xlabel("s")
+    ax.set_ylabel("log10(seconds)")
+    _scatter_by_method(ax, df, "s", "Time")
+    fig.tight_layout()
+    fig.savefig(output_dir / "runtime_vs_sparsity.png", dpi=160)
+    plt.close(fig)

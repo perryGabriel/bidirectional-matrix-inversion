@@ -38,7 +38,29 @@ python -m pip install -e .[dev]
 The script appends to an existing CSV if present, or creates one if missing.
 
 ```bash
-python scripts/run_benchmarks.py --num-samples 100 --min-n 10  --max-n 100000 --sampling-mode ordered --sparsity sqrt --output-csv data/benchmark_results.csv --artifacts-dir artifacts --graphx-size 40  --timeout-seconds 2.0
+python scripts/run_benchmarks.py \
+  --num-samples 100 \
+  --min-n 10 \
+  --max-n 100000 \
+  --sampling-mode ordered \
+  --sparsity sqrt \
+  --output-csv data/benchmark_results.csv \
+  --artifacts-dir artifacts \
+  --graphx-size 40 \
+  --timeout-seconds 2.0
+```
+
+Fixed `n`, varying sparsity `s` (paper-style sweep):
+
+```bash
+python scripts/run_benchmarks.py \
+  --sweep s \
+  --fixed-n 500 \
+  --num-samples 80 \
+  --min-s 2 \
+  --max-s 500 \
+  --sampling-mode ordered \
+  --output-csv data/benchmark_fixed_n.csv
 ```
 
 You can use fixed sparsity and include Gaussian baseline:
@@ -55,6 +77,7 @@ python scripts/run_benchmarks.py --sampling-mode random --num-samples 50 --min-n
 
 Notes:
 - `--sampling-mode ordered` (default) uses `np.logspace(min_n, max_n, num_samples)` style progression from small to large.
+- `--sweep n` (default) varies matrix size. `--sweep s` keeps `n` fixed (default `500`) and varies sparsity.
 - `--timeout-seconds` only affects ordered mode: when a method exceeds this runtime on a matrix size, that method is skipped for all larger matrix sizes.
 - Benchmarks show a `tqdm` progress bar by default (use `--no-progress` to disable).
 

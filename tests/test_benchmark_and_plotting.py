@@ -2,9 +2,9 @@ from pathlib import Path
 
 import pandas as pd
 
-from bidirectional_inverse.benchmark import BenchmarkConfig, benchmark_to_csv, run_all_methods
+from bidirectional_inverse.benchmark import BenchmarkConfig, benchmark_fixed_n_vary_s_to_csv, benchmark_to_csv, run_all_methods
 from bidirectional_inverse.matrix import generate_sparse_adjacency_list
-from bidirectional_inverse.plotting import generate_standard_plots
+from bidirectional_inverse.plotting import generate_sparsity_plots, generate_standard_plots
 
 
 def test_run_all_methods_smoke():
@@ -71,6 +71,19 @@ def test_partial_progress_is_saved_on_exception(tmp_path):
     assert not saved.empty
 
 
+def test_fixed_n_vary_s_appends_or_creates(tmp_path):
+    out = tmp_path / "bench_fixed_n.csv"
+    cfg = BenchmarkConfig(output_csv=out, max_iterations=20)
+    df = benchmark_fixed_n_vary_s_to_csv(
+        n=10,
+        sparsity_samples=[2, 3],
+        cfg=cfg,
+        show_progress=False,
+    )
+    assert out.exists()
+    assert not df.empty
+
+
 def test_plot_generation(tmp_path):
     df = pd.DataFrame(
         [
@@ -82,6 +95,9 @@ def test_plot_generation(tmp_path):
     )
     out_dir = tmp_path / "artifacts"
     generate_standard_plots(df, out_dir)
+    generate_sparsity_plots(df, out_dir)
     assert (out_dir / "flops_vs_columns.png").exists()
     assert (out_dir / "runtime_vs_n.png").exists()
     assert (out_dir / "error_vs_n.png").exists()
+    assert (out_dir / "flops_vs_sparsity.png").exists()
+    assert (out_dir / "runtime_vs_sparsity.png").exists()
