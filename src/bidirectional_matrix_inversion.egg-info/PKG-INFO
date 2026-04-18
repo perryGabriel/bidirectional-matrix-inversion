@@ -1,3 +1,17 @@
+Metadata-Version: 2.4
+Name: bidirectional-matrix-inversion
+Version: 0.1.0
+Summary: Sparse matrix inverse estimators centered on bidirectional search.
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+Requires-Dist: numpy>=1.24
+Requires-Dist: pandas>=2.0
+Requires-Dist: matplotlib>=3.7
+Requires-Dist: networkx>=3.0
+Requires-Dist: tqdm>=4.66
+Provides-Extra: dev
+Requires-Dist: pytest>=8.0; extra == "dev"
+
 # Bidirectional Matrix Inversion
 
 This repository is now structured as a reproducible Python package centered on the **bidirectional inverse algorithm** for sparse matrices.
@@ -38,7 +52,16 @@ python -m pip install -e .[dev]
 The script appends to an existing CSV if present, or creates one if missing.
 
 ```bash
-python scripts/run_benchmarks.py --num-samples 100 --min-n 10  --max-n 100000 --sampling-mode ordered --sparsity sqrt --output-csv data/benchmark_results.csv --artifacts-dir artifacts --graphx-size 40  --timeout-seconds 2.0
+python scripts/run_benchmarks.py \
+  --num-samples 100 \
+  --min-n 10 \
+  --max-n 100000 \
+  --sampling-mode ordered \
+  --sparsity sqrt \
+  --output-csv data/benchmark_results.csv \
+  --artifacts-dir artifacts \
+  --graphx-size 40 \
+  --timeout-seconds 2.0
 ```
 
 You can use fixed sparsity and include Gaussian baseline:
