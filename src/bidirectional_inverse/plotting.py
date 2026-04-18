@@ -13,6 +13,9 @@ def _scatter_by_method(ax, df: pd.DataFrame, xvar: str, yvar: str):
         "Power": "red",
         "Priority": "black",
         "Bidir": "green",
+        "Queue": "orange",
+        "Recover": "purple",
+        "ML": "brown",
     }
     for name, color in palette.items():
         filtered = df[df["Computed"] == name]

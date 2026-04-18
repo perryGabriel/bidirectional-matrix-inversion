@@ -1,14 +1,19 @@
 import numpy as np
 
 from bidirectional_inverse.algorithms import (
+    TreeNode,
     add_vectors,
-    bidir_dict,
     dict_mat_mult,
     gaussian_inv_dict,
+    ml_estimate_dict,
+    monte_carlo_estimate_entry,
     mul_q_left,
     pow_estimate_dict,
     pow_estimate_epsilon_dict,
+    queue_estimate_dict,
+    recover_power_series_dict,
 )
+from bidirectional_inverse.bidirectional import bidir_dict
 from bidirectional_inverse.matrix import dict_to_matrix, generate_sparse_adjacency_list
 
 
@@ -69,3 +74,23 @@ def test_bidir_runs_and_returns_sparse_vector():
     assert isinstance(u, dict)
     assert flops > 0
     assert cols >= 0
+
+
+def test_queue_recover_ml_algorithms_smoke():
+    _, m_col = _small_matrix(seed=11)
+    for method in (queue_estimate_dict, recover_power_series_dict, ml_estimate_dict):
+        u, flops, cols = method(m_col, j=1, max_iterations=30, epsilon=1e-5)
+        assert isinstance(u, dict)
+        assert flops >= 0
+        assert cols >= 0
+
+
+def test_monte_carlo_entry_smoke():
+    q = np.array([[0.0, 0.1], [0.2, 0.0]])
+    val = monte_carlo_estimate_entry(q, row=0, col=1, num_iters=20)
+    assert isinstance(val, float)
+
+
+def test_tree_node_init():
+    node = TreeNode(pos=1)
+    assert node.pos == 1

@@ -7,6 +7,8 @@ from pathlib import Path
 import numpy as np
 
 from bidirectional_inverse.benchmark import BenchmarkConfig, benchmark_to_csv
+from bidirectional_inverse.graphx import draw_q_graph_from_sparse
+from bidirectional_inverse.matrix import generate_sparse_adjacency_list
 from bidirectional_inverse.plotting import generate_standard_plots
 
 
@@ -21,6 +23,7 @@ def parse_args():
     parser.add_argument("--output-csv", type=Path, default=Path("data/benchmark_results.csv"))
     parser.add_argument("--artifacts-dir", type=Path, default=Path("artifacts"))
     parser.add_argument("--with-gauss", action="store_true")
+    parser.add_argument("--graphx-size", type=int, default=0, help="If > 0, also render GraphX visualization for Q = I - M.")
     return parser.parse_args()
 
 
@@ -41,6 +44,10 @@ def main():
     df = benchmark_to_csv(samples=samples, sparsity_fn=sparsity_fn, cfg=cfg)
     if not df.empty:
         generate_standard_plots(df, args.artifacts_dir)
+    if args.graphx_size > 0:
+        s = int(sparsity_fn(args.graphx_size))
+        _, m_col = generate_sparse_adjacency_list(args.graphx_size, s, cfg.q_spectral_radius, seed=args.seed)
+        draw_q_graph_from_sparse(m_col, size=args.graphx_size, output_path=args.artifacts_dir / "q_graphx.png")
 
 
 if __name__ == "__main__":

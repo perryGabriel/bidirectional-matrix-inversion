@@ -8,7 +8,15 @@ from typing import Callable, Iterable
 import numpy as np
 import pandas as pd
 
-from .algorithms import bidir_dict, gaussian_inv_dict, pow_estimate_dict, pow_estimate_epsilon_dict
+from .algorithms import (
+    gaussian_inv_dict,
+    ml_estimate_dict,
+    pow_estimate_dict,
+    pow_estimate_epsilon_dict,
+    queue_estimate_dict,
+    recover_power_series_dict,
+)
+from .bidirectional import bidir_dict
 from .matrix import dict_to_matrix, generate_sparse_adjacency_list, measure
 from .types import SparseMatrix
 
@@ -121,7 +129,40 @@ def run_all_methods(m_row: SparseMatrix, m_col: SparseMatrix, n: int, cfg: Bench
         actual_m_inv=actual_m_inv,
         verbose=0,
     )
-    return [gauss, power, priority, bidir]
+    queue = use_method(
+        m_col,
+        n,
+        sample,
+        queue_estimate_dict,
+        cfg=cfg,
+        max_iterations=cfg.max_iterations,
+        epsilon=cfg.pri_epsilon,
+        actual_m_inv=actual_m_inv,
+        verbose=0,
+    )
+    recover = use_method(
+        m_col,
+        n,
+        sample,
+        recover_power_series_dict,
+        cfg=cfg,
+        max_iterations=cfg.max_iterations,
+        epsilon=cfg.pri_epsilon,
+        actual_m_inv=actual_m_inv,
+        verbose=0,
+    )
+    ml = use_method(
+        m_col,
+        n,
+        sample,
+        ml_estimate_dict,
+        cfg=cfg,
+        max_iterations=cfg.max_iterations,
+        epsilon=cfg.pri_epsilon,
+        actual_m_inv=actual_m_inv,
+        verbose=0,
+    )
+    return [gauss, power, priority, bidir, queue, recover, ml]
 
 
 def benchmark_to_csv(samples: Iterable[int], sparsity_fn: Callable[[int], int], cfg: BenchmarkConfig):
@@ -144,7 +185,7 @@ def benchmark_to_csv(samples: Iterable[int], sparsity_fn: Callable[[int], int], 
         )
         results = run_all_methods(m_row, m_col, n, cfg)
 
-        method_names = ["Gauss", "Power", "Priority", "Bidir"]
+        method_names = ["Gauss", "Power", "Priority", "Bidir", "Queue", "Recover", "ML"]
         for idx, method in enumerate(method_names):
             if method == "Gauss" and not (cfg.show_gauss and n < cfg.gauss_cutoff):
                 continue

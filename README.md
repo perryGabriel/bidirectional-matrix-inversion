@@ -5,11 +5,12 @@ This repository is now structured as a reproducible Python package centered on t
 ## Repository layout
 
 - `src/bidirectional_inverse/`: source package.
-  - `algorithms.py`: inverse estimators (Gaussian baseline, power series, rounded/priority, bidirectional).
+  - `bidirectional.py`: main bidirectional inverse algorithm (core contribution).
+  - `algorithms.py`: all other inverse estimators (Gaussian, power, rounded/priority, queue, recover, ML-feedback, Monte Carlo entry estimate).
   - `matrix.py`: sparse matrix generation, conversions, norms.
   - `benchmark.py`: unified benchmark/data generation pipeline with append-or-create CSV behavior.
   - `plotting.py`: reproducible figure generation into `artifacts/`.
-  - `experimental.py`: optional Monte Carlo estimator from prior exploration.
+  - `graphx.py`: graph visualizations for \(Q = I - M\) with NetworkX.
 - `tests/`: unit tests for package methods.
 - `scripts/run_benchmarks.py`: one command to produce benchmark CSV + plots.
 - `data/`: benchmark CSV files.
@@ -42,7 +43,8 @@ python scripts/run_benchmarks.py \
   --max-n 5000 \
   --sparsity sqrt \
   --output-csv data/benchmark_results.csv \
-  --artifacts-dir artifacts
+  --artifacts-dir artifacts \
+  --graphx-size 40
 ```
 
 You can use fixed sparsity and include Gaussian baseline:
@@ -56,6 +58,7 @@ python scripts/run_benchmarks.py --sparsity fixed --fixed-s 500 --with-gauss
 - The benchmark script recreates publication-style comparison figures from generated CSV data.
 - Existing legacy CSV and PNG files are preserved in `data/` and `artifacts/`.
 - The paper PDF is available in `docs/`.
+- The benchmark includes the main bidirectional method and the additional algorithms from legacy notebooks so all approaches can be compared in one output CSV.
 
 ## Testing
 
