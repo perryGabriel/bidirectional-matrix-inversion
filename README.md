@@ -38,29 +38,13 @@ python -m pip install -e .[dev]
 The script appends to an existing CSV if present, or creates one if missing.
 
 ```bash
-python scripts/run_benchmarks.py \
-  --num-samples 100 \
-  --min-n 10 \
-  --max-n 100000 \
-  --sampling-mode ordered \
-  --sparsity sqrt \
-  --output-csv data/benchmark_results.csv \
-  --artifacts-dir artifacts \
-  --graphx-size 40 \
-  --timeout-seconds 2.0
+python scripts/run_benchmarks.py --num-samples 100 --min-n 1000 --max-n 100000 --sampling-mode ordered --sparsity sqrt --output-csv data/benchmark_results.csv --artifacts-dir artifacts --graphx-size 40 --timeout-seconds 2.0
 ```
 
 Fixed `n`, varying sparsity `s` (paper-style sweep):
 
 ```bash
-python scripts/run_benchmarks.py \
-  --sweep s \
-  --fixed-n 500 \
-  --num-samples 80 \
-  --min-s 2 \
-  --max-s 500 \
-  --sampling-mode ordered \
-  --output-csv data/benchmark_fixed_n.csv
+python scripts/run_benchmarks.py --sweep s --fixed-n 500 --num-samples 80 --min-s 2 --max-s 500 --sampling-mode ordered --output-csv data/benchmark_fixed_n.csv
 ```
 
 You can use fixed sparsity and include Gaussian baseline:
