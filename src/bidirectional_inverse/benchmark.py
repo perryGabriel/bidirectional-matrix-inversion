@@ -210,40 +210,41 @@ def benchmark_to_csv(
     sample_list = [int(x) for x in samples]
     iterator = tqdm(sample_list, desc="Benchmarking", unit="matrix") if show_progress else sample_list
 
-    for n in iterator:
-        s = int(sparsity_fn(n))
-        if n >= cfg.absolute_cutoff:
-            continue
+    try:
+        for n in iterator:
+            s = int(sparsity_fn(n))
+            if n >= cfg.absolute_cutoff:
+                continue
 
-        m_row, m_col = generate_sparse_adjacency_list(
-            size=n,
-            num_out_edges=s,
-            sum_of_each_column=cfg.q_spectral_radius,
-        )
-        results, disabled_methods = run_all_methods(
-            m_row,
-            m_col,
-            n,
-            cfg,
-            timeout_seconds=timeout_seconds,
-            disable_on_timeout=ordered_samples,
-            disabled_methods=disabled_methods,
-        )
-
-        for method, (flops, err, cols, runtime) in results.items():
-            rows.append(
-                {
-                    "Computed": method,
-                    "n": n,
-                    "s": s,
-                    "Avg. FLOPs": np.log10(flops),
-                    "Cols Fetched": np.log10(cols),
-                    "Avg. Linf Error": np.log10(err),
-                    "Time": np.log10(runtime),
-                }
+            m_row, m_col = generate_sparse_adjacency_list(
+                size=n,
+                num_out_edges=s,
+                sum_of_each_column=cfg.q_spectral_radius,
+            )
+            results, disabled_methods = run_all_methods(
+                m_row,
+                m_col,
+                n,
+                cfg,
+                timeout_seconds=timeout_seconds,
+                disable_on_timeout=ordered_samples,
+                disabled_methods=disabled_methods,
             )
 
-    if rows:
-        df = pd.concat((df, pd.DataFrame(rows)), ignore_index=True)
-        df.to_csv(cfg.output_csv, index=False)
+            for method, (flops, err, cols, runtime) in results.items():
+                rows.append(
+                    {
+                        "Computed": method,
+                        "n": n,
+                        "s": s,
+                        "Avg. FLOPs": np.log10(flops),
+                        "Cols Fetched": np.log10(cols),
+                        "Avg. Linf Error": np.log10(err),
+                        "Time": np.log10(runtime),
+                    }
+                )
+    finally:
+        if rows:
+            df = pd.concat((df, pd.DataFrame(rows)), ignore_index=True)
+            df.to_csv(cfg.output_csv, index=False)
     return df

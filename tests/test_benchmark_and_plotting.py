@@ -44,6 +44,33 @@ def test_ordered_timeout_disables_for_larger_sizes(tmp_path):
     assert not df.empty
 
 
+def test_partial_progress_is_saved_on_exception(tmp_path):
+    out = tmp_path / "bench_partial.csv"
+    cfg = BenchmarkConfig(output_csv=out, max_iterations=20)
+
+    calls = {"count": 0}
+
+    def flaky_sparsity(n):
+        calls["count"] += 1
+        if calls["count"] > 1:
+            raise RuntimeError("intentional failure after first sample")
+        return 2
+
+    try:
+        benchmark_to_csv(
+            samples=[5, 6],
+            sparsity_fn=flaky_sparsity,
+            cfg=cfg,
+            show_progress=False,
+        )
+    except RuntimeError:
+        pass
+
+    assert out.exists()
+    saved = pd.read_csv(out)
+    assert not saved.empty
+
+
 def test_plot_generation(tmp_path):
     df = pd.DataFrame(
         [
