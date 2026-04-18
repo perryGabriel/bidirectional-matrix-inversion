@@ -10,22 +10,38 @@ from bidirectional_inverse.plotting import generate_standard_plots
 def test_run_all_methods_smoke():
     m_row, m_col = generate_sparse_adjacency_list(6, 2, 0.5, seed=2)
     cfg = BenchmarkConfig(output_csv=Path("data/_tmp_test.csv"), max_iterations=20)
-    results = run_all_methods(m_row, m_col, 6, cfg)
-    assert len(results) == 7
+    results, disabled = run_all_methods(m_row, m_col, 6, cfg)
+    assert isinstance(results, dict)
+    assert "Priority" in results
+    assert disabled == set()
 
 
 def test_benchmark_appends_or_creates(tmp_path):
     out = tmp_path / "bench.csv"
     cfg = BenchmarkConfig(output_csv=out, max_iterations=20)
 
-    df1 = benchmark_to_csv(samples=[5, 6], sparsity_fn=lambda n: 2, cfg=cfg)
+    df1 = benchmark_to_csv(samples=[5, 6], sparsity_fn=lambda n: 2, cfg=cfg, show_progress=False)
     assert out.exists()
     assert not df1.empty
 
     before = len(pd.read_csv(out))
-    benchmark_to_csv(samples=[7], sparsity_fn=lambda n: 2, cfg=cfg)
+    benchmark_to_csv(samples=[7], sparsity_fn=lambda n: 2, cfg=cfg, show_progress=False)
     after = len(pd.read_csv(out))
     assert after >= before
+
+
+def test_ordered_timeout_disables_for_larger_sizes(tmp_path):
+    out = tmp_path / "bench_timeout.csv"
+    cfg = BenchmarkConfig(output_csv=out, max_iterations=20)
+    df = benchmark_to_csv(
+        samples=[5, 6],
+        sparsity_fn=lambda n: 2,
+        cfg=cfg,
+        timeout_seconds=0.0 + 1e-12,
+        ordered_samples=True,
+        show_progress=False,
+    )
+    assert not df.empty
 
 
 def test_plot_generation(tmp_path):

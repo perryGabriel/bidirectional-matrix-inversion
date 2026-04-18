@@ -7,6 +7,7 @@ from typing import Callable, Iterable
 
 import numpy as np
 import pandas as pd
+from tqdm import tqdm
 
 from .algorithms import (
     gaussian_inv_dict,
@@ -77,7 +78,92 @@ def use_method(matrix: SparseMatrix, n: int, sample: np.ndarray, method: Callabl
     return flops, inf_error, unique_cols, runtime
 
 
-def run_all_methods(m_row: SparseMatrix, m_col: SparseMatrix, n: int, cfg: BenchmarkConfig):
+def _method_specs(cfg: BenchmarkConfig):
+    return [
+        ("Gauss", gaussian_inv_dict, lambda n, sample, actual: {"actual_m_inv": actual}, lambda n: cfg.show_gauss and n < cfg.gauss_cutoff),
+        (
+            "Power",
+            pow_estimate_dict,
+            lambda n, sample, actual: {
+                "max_iterations": cfg.max_iterations,
+                "epsilon": cfg.pow_epsilon,
+                "actual_m_inv": actual,
+                "verbose": 0,
+            },
+            lambda n: n < cfg.power_series_cutoff,
+        ),
+        (
+            "Priority",
+            pow_estimate_epsilon_dict,
+            lambda n, sample, actual: {
+                "max_iterations": cfg.max_iterations,
+                "epsilon": cfg.pri_epsilon,
+                "actual_m_inv": actual,
+                "verbose": 0,
+            },
+            lambda n: True,
+        ),
+        (
+            "Bidir",
+            bidir_dict,
+            lambda n, sample, actual: {
+                "matrix_row": None,
+                "i": cfg.i,
+                "max_iterations": cfg.max_iterations,
+                "epsilon": cfg.bid_epsilon,
+                "actual_m_inv": actual,
+                "verbose": 0,
+            },
+            lambda n: True,
+        ),
+        (
+            "Queue",
+            queue_estimate_dict,
+            lambda n, sample, actual: {
+                "max_iterations": cfg.max_iterations,
+                "epsilon": cfg.pri_epsilon,
+                "actual_m_inv": actual,
+                "verbose": 0,
+            },
+            lambda n: True,
+        ),
+        (
+            "Recover",
+            recover_power_series_dict,
+            lambda n, sample, actual: {
+                "max_iterations": cfg.max_iterations,
+                "epsilon": cfg.pri_epsilon,
+                "actual_m_inv": actual,
+                "verbose": 0,
+            },
+            lambda n: True,
+        ),
+        (
+            "ML",
+            ml_estimate_dict,
+            lambda n, sample, actual: {
+                "max_iterations": cfg.max_iterations,
+                "epsilon": cfg.pri_epsilon,
+                "actual_m_inv": actual,
+                "verbose": 0,
+            },
+            lambda n: True,
+        ),
+    ]
+
+
+def run_all_methods(
+    m_row: SparseMatrix,
+    m_col: SparseMatrix,
+    n: int,
+    cfg: BenchmarkConfig,
+    timeout_seconds: float | None = None,
+    disable_on_timeout: bool = False,
+    disabled_methods: set[str] | None = None,
+):
+    if disabled_methods is None:
+        disabled_methods = set()
+
     sample_size = min(n, cfg.sample_size)
     sample = np.random.randint(low=0, high=n, size=sample_size, dtype=int)
 
@@ -86,112 +172,65 @@ def run_all_methods(m_row: SparseMatrix, m_col: SparseMatrix, n: int, cfg: Bench
     else:
         actual_m_inv = None
 
-    gauss = (1.0, 1.0, 1.0, 1.0)
-    if cfg.show_gauss and n < cfg.gauss_cutoff:
-        gauss = use_method(m_col, n, sample, gaussian_inv_dict, cfg=cfg, actual_m_inv=actual_m_inv)
+    results: dict[str, tuple[float, float, float, float]] = {}
+    for name, method, kwargs_builder, should_run in _method_specs(cfg):
+        if name in disabled_methods or not should_run(n):
+            continue
 
-    power = (1.0, 1.0, 1.0, 1.0)
-    if n < cfg.power_series_cutoff:
-        power = use_method(
-            m_col,
-            n,
-            sample,
-            pow_estimate_dict,
-            cfg=cfg,
-            max_iterations=cfg.max_iterations,
-            epsilon=cfg.pow_epsilon,
-            actual_m_inv=actual_m_inv,
-            verbose=0,
-        )
+        kwargs = kwargs_builder(n, sample, actual_m_inv)
+        if name == "Bidir":
+            kwargs["matrix_row"] = m_row
 
-    priority = use_method(
-        m_col,
-        n,
-        sample,
-        pow_estimate_epsilon_dict,
-        cfg=cfg,
-        max_iterations=cfg.max_iterations,
-        epsilon=cfg.pri_epsilon,
-        actual_m_inv=actual_m_inv,
-        verbose=0,
-    )
+        start = time.perf_counter()
+        results[name] = use_method(m_col, n, sample, method, cfg=cfg, **kwargs)
+        elapsed = time.perf_counter() - start
 
-    bidir = use_method(
-        m_col,
-        n,
-        sample,
-        bidir_dict,
-        cfg=cfg,
-        matrix_row=m_row,
-        i=cfg.i,
-        max_iterations=cfg.max_iterations,
-        epsilon=cfg.bid_epsilon,
-        actual_m_inv=actual_m_inv,
-        verbose=0,
-    )
-    queue = use_method(
-        m_col,
-        n,
-        sample,
-        queue_estimate_dict,
-        cfg=cfg,
-        max_iterations=cfg.max_iterations,
-        epsilon=cfg.pri_epsilon,
-        actual_m_inv=actual_m_inv,
-        verbose=0,
-    )
-    recover = use_method(
-        m_col,
-        n,
-        sample,
-        recover_power_series_dict,
-        cfg=cfg,
-        max_iterations=cfg.max_iterations,
-        epsilon=cfg.pri_epsilon,
-        actual_m_inv=actual_m_inv,
-        verbose=0,
-    )
-    ml = use_method(
-        m_col,
-        n,
-        sample,
-        ml_estimate_dict,
-        cfg=cfg,
-        max_iterations=cfg.max_iterations,
-        epsilon=cfg.pri_epsilon,
-        actual_m_inv=actual_m_inv,
-        verbose=0,
-    )
-    return [gauss, power, priority, bidir, queue, recover, ml]
+        if timeout_seconds is not None and elapsed > timeout_seconds and disable_on_timeout:
+            disabled_methods.add(name)
+
+    return results, disabled_methods
 
 
-def benchmark_to_csv(samples: Iterable[int], sparsity_fn: Callable[[int], int], cfg: BenchmarkConfig):
+def benchmark_to_csv(
+    samples: Iterable[int],
+    sparsity_fn: Callable[[int], int],
+    cfg: BenchmarkConfig,
+    timeout_seconds: float | None = None,
+    ordered_samples: bool = True,
+    show_progress: bool = True,
+):
     cfg.output_csv.parent.mkdir(parents=True, exist_ok=True)
     if cfg.output_csv.exists():
         df = pd.read_csv(cfg.output_csv)
     else:
         df = pd.DataFrame(columns=["Computed", "n", "s", "Avg. FLOPs", "Cols Fetched", "Avg. Linf Error", "Time"])
 
+    disabled_methods: set[str] = set()
     rows = []
-    for n_raw in samples:
-        n = int(n_raw)
+    sample_list = [int(x) for x in samples]
+    iterator = tqdm(sample_list, desc="Benchmarking", unit="matrix") if show_progress else sample_list
+
+    for n in iterator:
         s = int(sparsity_fn(n))
         if n >= cfg.absolute_cutoff:
             continue
+
         m_row, m_col = generate_sparse_adjacency_list(
             size=n,
             num_out_edges=s,
             sum_of_each_column=cfg.q_spectral_radius,
         )
-        results = run_all_methods(m_row, m_col, n, cfg)
+        results, disabled_methods = run_all_methods(
+            m_row,
+            m_col,
+            n,
+            cfg,
+            timeout_seconds=timeout_seconds,
+            disable_on_timeout=ordered_samples,
+            disabled_methods=disabled_methods,
+        )
 
-        method_names = ["Gauss", "Power", "Priority", "Bidir", "Queue", "Recover", "ML"]
-        for idx, method in enumerate(method_names):
-            if method == "Gauss" and not (cfg.show_gauss and n < cfg.gauss_cutoff):
-                continue
-            if method == "Power" and not (n < cfg.power_series_cutoff):
-                continue
-            flops, err, cols, runtime = results[idx]
+        for method, (flops, err, cols, runtime) in results.items():
             rows.append(
                 {
                     "Computed": method,
